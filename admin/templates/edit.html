@@ -1,0 +1,61 @@
+{{define "edit"}}
+{{ template "head"}}
+
+    <!-- Page Wrapper -->
+    <div id="wrapper">
+
+        {{ template "sidebar" . -}}
+
+        <!-- Content Wrapper -->
+        <div id="content-wrapper" class="d-flex flex-column">
+
+            <!-- Main Content -->
+            <div id="content">
+
+                {{ template "topbar" . -}}
+
+                <!-- Begin Page Content -->
+                <div class="container-fluid">
+
+                  <!-- Page Heading -->
+                  <h1 class="h3 mb-2 text-gray-800">Edit</h1>
+                  <p class="mb-4">Edit item</p>
+
+                  <!-- DataTales Example -->
+                  <div class="card shadow mb-4">
+                      <div class="card-body">
+                        <form>
+                            <div class="form-group">
+                              <label for="exampleInputEmail1">Email address</label>
+                              <input type="email" class="form-control" id="exampleInputEmail1" aria-describedby="emailHelp">
+                              <small id="emailHelp" class="form-text text-muted">We'll never share your email with anyone else.</small>
+                            </div>
+                            <div class="form-group">
+                              <label for="exampleInputPassword1">Password</label>
+                              <input type="password" class="form-control" id="exampleInputPassword1">
+                            </div>
+                            <div class="form-group form-check">
+                              <input type="checkbox" class="form-check-input" id="exampleCheck1">
+                              <label class="form-check-label" for="exampleCheck1">Check me out</label>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Submit</button>
+                          </form>
+                      </div>
+                  </div>
+
+
+                </div>
+                <!-- /.container-fluid -->
+
+            </div>
+            <!-- End of Main Content -->
+
+        </div>
+        <!-- End of Content Wrapper -->
+
+    </div>
+    <!-- End of Page Wrapper -->
+
+{{ template "foot" }}
+{{end}}
+
