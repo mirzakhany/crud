@@ -9,13 +9,15 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/Masterminds/sprig/v3"
+	"github.com/go-chi/chi/v5"
 	_ "github.com/lib/pq"
 )
 
-//go:embed templates
+//go:embed all:templates
 var templates embed.FS
 
-//go:embed assets
+//go:embed all:assets
 var assets embed.FS
 
 // handler represents a http handler.
@@ -103,25 +105,109 @@ func New(opts ...Option) (*Admin, error) {
 }
 
 // PrepareHandlers prepares the admin module handlers.
-func (a *Admin) PrepareHandlers(mux *http.ServeMux) {
-
+func (a *Admin) PrepareHandlers(r chi.Router) {
 	baseURL := func(s string) string {
 		return path.Join(a.BaseURL, s)
 	}
 
-	// Serve static files.
-	mux.Handle(baseURL("/assets/"), http.StripPrefix(baseURL("/assets/"), http.FileServer(http.FS(assets))))
+	FileServer(r, baseURL("/"), http.FS(assets))
 
 	// regiser esentional handlers
-	mux.HandleFunc(baseURL("/dashboard/"), a.dashboard)
-	mux.HandleFunc(baseURL("/forget-password/"), a.forgetPassword)
-	mux.HandleFunc(baseURL("/login/"), a.login)
-	mux.HandleFunc(baseURL("/register/"), a.register)
-	mux.HandleFunc(baseURL("/entity/")+"/", a.handleEntity)
+	// mux.HandleFunc(baseURL("/dashboard/"), a.dashboard)
+	// mux.HandleFunc(baseURL("/forget-password/"), a.forgetPassword)
+	// mux.HandleFunc(baseURL("/login/"), a.login)
+	// mux.HandleFunc(baseURL("/register/"), a.register)
+	// mux.HandleFunc(baseURL("/entity/")+"/", a.handleEntity)
+
+	r.Get(baseURL("/entity/{entity}"), a.getEntityList)
+	r.Get(baseURL("/entity/{entity}/{entityID}"), a.getEntityEdit)
+}
+
+// ListData represents the data needed to render the list template.
+type ListData struct {
+	Title       string
+	Description string
+	EntityName  string
+	BaesURL     string
+	Columns     []string
+	Rows        []Row
+
+	Menus []Menu
+}
+
+func (a *Admin) getEntityList(w http.ResponseWriter, r *http.Request) {
+	entityName := chi.URLParam(r, "entity")
+	entity, ok := a.Entities[entityName]
+	if !ok {
+		http.Error(w, "entity not found", http.StatusNotFound)
+		return
+	}
+
+	rows, columens, err := getTableColumenRows(a.databaseConn, entity.TableName, entity.PrimaryKey, entity.Columns)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	data := ListData{
+		Menus:       a.getMenus(),
+		Title:       entity.TitlePlural,
+		EntityName:  entity.TableName,
+		BaesURL:     a.BaseURL,
+		Description: entity.Description,
+		Columns:     columens,
+		Rows:        rows,
+	}
+
+	if err := a.executeTemplate(w, "list", data); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+// EditData represents the data needed to render the edit template.
+type EditData struct {
+	Title       string
+	Description string
+	Row         Row
+
+	Menus []Menu
+}
+
+func (a *Admin) getEntityEdit(w http.ResponseWriter, r *http.Request) {
+	// get entity name from url and call list with that name
+	entityName := chi.URLParam(r, "entity")
+	entityID := chi.URLParam(r, "entityID")
+
+	entity, ok := a.Entities[entityName]
+	if !ok {
+		http.Error(w, "entity not found", http.StatusNotFound)
+		return
+	}
+
+	row, err := getEntityByID(a.databaseConn, entity.TableName, entity.PrimaryKey, entityID)
+	if err != nil && err != sql.ErrNoRows {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if err == sql.ErrNoRows {
+		http.Error(w, "entity not found", http.StatusNotFound)
+		return
+	}
+
+	data := EditData{
+		Menus:       a.getMenus(),
+		Title:       entity.TitleSingular,
+		Description: entity.Description,
+		Row:         *row,
+	}
+
+	if err := a.executeTemplate(w, "edit", data); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 func (a *Admin) executeTemplate(w http.ResponseWriter, name string, data any) error {
-	tmpl, err := template.ParseFS(templates, "templates/*.html")
+	tmpl, err := template.New("base").Funcs(sprig.FuncMap()).ParseFS(templates, "templates/*.html")
 	if err != nil {
 		return err
 	}
@@ -142,85 +228,6 @@ func (a *Admin) executeTemplate(w http.ResponseWriter, name string, data any) er
 	}
 
 	return tmpl.ExecuteTemplate(w, name, data)
-}
-
-func (a *Admin) handleEntity(w http.ResponseWriter, r *http.Request) {
-	// if url contain edit then remove it and call edit handler
-	editMode := false
-	if strings.Contains(r.URL.Path, "/edit") {
-		editMode = true
-		r.URL.Path = strings.Replace(r.URL.Path, "/edit", "", 1)
-	}
-
-	// get entity name from url and call list with that name
-	entityName := strings.TrimPrefix(r.URL.Path, path.Join(a.BaseURL, "/entity/")+"/")
-
-	entity, ok := a.Entities[entityName]
-	if !ok {
-		http.Error(w, "entity not found", http.StatusNotFound)
-		return
-	}
-
-	if r.Method == http.MethodGet {
-		if editMode {
-			a.handleGetEdit(w, r, entity)
-		} else {
-			a.handleListGet(w, r, entity)
-		}
-	} else if r.Method == http.MethodPost {
-	}
-}
-
-// ListData represents the data needed to render the list template.
-type ListData struct {
-	Title       string
-	Description string
-	Columns     []string
-	Rows        [][]any
-
-	Menus []Menu
-}
-
-func (a *Admin) handleListGet(w http.ResponseWriter, r *http.Request, entity Entity) {
-	cols, rows, err := getTableColumenRows(a.databaseConn, entity.TableName, entity.Columns)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-
-	data := ListData{
-		Menus:       a.getMenus(),
-		Title:       entity.TitlePlural,
-		Description: entity.Description,
-		Columns:     cols,
-		Rows:        rows,
-	}
-
-	if err := a.executeTemplate(w, "list", data); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
-
-type EditData struct {
-	Title       string
-	Description string
-	Columns     []string
-
-	ColumnData map[string]any
-
-	Menus []Menu
-}
-
-func (a *Admin) handleGetEdit(w http.ResponseWriter, r *http.Request, entity Entity) {
-	data := EditData{
-		Menus:       a.getMenus(),
-		Title:       entity.TitleSingular,
-		Description: entity.Description,
-		Columns:     entity.Columns,
-	}
-
-	if err := a.executeTemplate(w, "edit", data); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
 }
 
 // Menu represents a menu item.
@@ -275,4 +282,26 @@ func (a *Admin) forgetPassword(w http.ResponseWriter, r *http.Request) {
 	if err := a.executeTemplate(w, "forget_password", nil); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+}
+
+// FileServer conveniently sets up a http.FileServer handler to serve
+// static files from a http.FileSystem.
+func FileServer(r chi.Router, path string, root http.FileSystem) {
+	if strings.ContainsAny(path, "{}*") {
+		panic("FileServer does not permit any URL parameters.")
+	}
+
+	if path != "/" && path[len(path)-1] != '/' {
+		r.Get(path, http.RedirectHandler(path+"/", 301).ServeHTTP)
+		path += "/"
+	}
+	path += "*"
+
+	r.Get(path, func(w http.ResponseWriter, r *http.Request) {
+		rctx := chi.RouteContext(r.Context())
+		pathPrefix := strings.TrimSuffix(rctx.RoutePattern(), "/*")
+
+		fs := http.StripPrefix(pathPrefix, http.FileServer(root))
+		fs.ServeHTTP(w, r)
+	})
 }

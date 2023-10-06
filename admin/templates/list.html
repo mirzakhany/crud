@@ -23,7 +23,6 @@
                     <div class="col-xl-10 col-lg-10 col-md-10">
                         <h1 class="h3 mb-2 text-gray-800">{{ .Title }}</h1>
                         <p class="mb-4">{{ .Description }}</p>
-            
                     </div>
                     <div class="col-xl-2 col-lg-2 col-md-2 my-4">
                         <a href="/edit" class="btn btn-primary btn-icon-split" style="float: right;">
@@ -34,7 +33,7 @@
                         </a>
                     </div>
                   </div>
-     
+                 {{ $entityName := .EntityName }}
                   <!-- DataTales Example -->
                   <div class="card shadow mb-4">
                       <div class="card-body">
@@ -43,7 +42,7 @@
                                   <thead>
                                       <tr>
                                         {{ range .Columns }}
-                                            <th>{{ . }}</th>
+                                            <th>{{ . | replace "_" " " | title }}</th>
                                         {{ end }}
                                         <th style="width:10%">Actions</th>
                                       </tr>
@@ -51,26 +50,27 @@
                                   <tfoot>
                                       <tr>
                                         {{ range .Columns }}
-                                            <th>{{ . }}</th>
+                                            <th>{{ . | replace "_" " " | title }}</th>
                                         {{ end }}
                                         <th>Actions</th>
                                       </tr>
                                   </tfoot>
                                   <tbody>
-                                    {{range $i, $row := .Rows}}
-                                      <tr>
-                                        {{ range $j, $col := $row }}
-                                            <td>{{ $col }}</td>
-                                        {{ end }}
-                                        <td>
-                                            <a href="/edit?id={{ index $row 0 }}" class="btn btn-info btn-circle btn-sm">
-                                                <i class="fas fa-edit"></i>
-                                            </a>
-                                            <a href="/delete?id={{ index $row 0 }}" class="btn btn-danger btn-circle btn-sm">
-                                                <i class="fas fa-trash"></i>
-                                            </a>
-                                      </tr>
-                                    {{ end }}  
+                                    {{range .Rows }}
+                                        <tr>
+                                            {{ range .Columns }}
+                                                 <td>{{ .Value }}</td>
+                                            {{end}}
+                                            <td>
+                                                <a href="/admin/entity/{{$entityName}}/{{ .PrimaryKeyValue }}" class="btn btn-info btn-circle btn-sm">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                                <a href="/admin/entity/{{$entityName}}/{{ .PrimaryKeyValue }}" class="btn btn-danger btn-circle btn-sm">
+                                                    <i class="fas fa-trash"></i>
+                                                </a>
+                                            </td>      
+                                        </tr>
+                                    {{end}}
                                   </tbody>
                               </table>
                           </div>

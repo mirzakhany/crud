@@ -3,11 +3,14 @@ package main
 import (
 	"net/http"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/mirzakhany/admin-gen/admin"
 )
 
 func main() {
-	httpRouter := http.NewServeMux()
+	httpRouter := chi.NewRouter()
+	httpRouter.Use(middleware.Logger)
 	//admin.Init(httpRouter)
 
 	entities := []admin.Entity{

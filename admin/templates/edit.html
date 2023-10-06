@@ -18,31 +18,36 @@
                 <div class="container-fluid">
 
                   <!-- Page Heading -->
-                  <h1 class="h3 mb-2 text-gray-800">Edit</h1>
-                  <p class="mb-4">Edit item</p>
-
+                  <h1 class="h3 mb-2 text-gray-800">Edit {{ .Title }}</h1>
+                  {{ with .Row }}
+                  <p class="mb-4">{{ .PrimaryKey }} {{ .PrimaryKeyValue }}</p>
+                  {{ end }}
                   <!-- DataTales Example -->
                   <div class="card shadow mb-4">
                       <div class="card-body">
                         <form>
-                            <div class="form-group">
-                              <label for="exampleInputEmail1">Email address</label>
-                              <input type="email" class="form-control" id="exampleInputEmail1" aria-describedby="emailHelp">
-                              <small id="emailHelp" class="form-text text-muted">We'll never share your email with anyone else.</small>
-                            </div>
-                            <div class="form-group">
-                              <label for="exampleInputPassword1">Password</label>
-                              <input type="password" class="form-control" id="exampleInputPassword1">
-                            </div>
-                            <div class="form-group form-check">
-                              <input type="checkbox" class="form-check-input" id="exampleCheck1">
-                              <label class="form-check-label" for="exampleCheck1">Check me out</label>
-                            </div>
+                            {{ with .Row }}
+                            {{ range .Columns }}
+                              <div class="form-group">
+                                <label for="input-{{ .Name }}">{{ .Name | replace "_" " " | title }}</label>
+                                <input 
+                                  {{ if eq .IsPrimary true }}disabled{{ end }}
+                                  {{ if eq .Type "int" }}type="number"{{ end }}
+                                  {{ if eq .Type "float" }}type="number"{{ end }}
+                                  {{ if eq .Type "string" }}type="text"{{ end }}
+                                  {{ if eq .Type "bool" }}type="checkbox"{{ end }}
+                                  value="{{ .Value }}" 
+                                  class="form-control {{ if eq .Type "time.Time" }}datepicker{{ end }}" 
+                                  id="input-{{ .Name }}" 
+                                  aria-describedby="input-{{ .Name }}Help">
+                                <small id="input-{{ .Name }}Help" class="form-text text-muted"></small>
+                              </div>
+                            {{ end }}
+                            {{ end }}
                             <button type="submit" class="btn btn-primary">Submit</button>
                           </form>
                       </div>
                   </div>
-
 
                 </div>
                 <!-- /.container-fluid -->
