@@ -9,7 +9,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/Masterminds/sprig/v3"
 	"github.com/go-chi/chi/v5"
 	_ "github.com/lib/pq"
 )
@@ -227,7 +226,7 @@ func (a *Admin) deleteEntity(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *Admin) executeTemplate(w http.ResponseWriter, name string, data any) error {
-	tmpl, err := template.New("base").Funcs(sprig.FuncMap()).ParseFS(templates, "templates/*.html")
+	tmpl, err := template.New("base").Funcs(templateFuncs()).ParseFS(templates, "templates/*.html")
 	if err != nil {
 		return err
 	}
