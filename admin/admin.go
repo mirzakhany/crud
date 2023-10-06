@@ -121,6 +121,7 @@ func (a *Admin) PrepareHandlers(r chi.Router) {
 
 	r.Get(baseURL("/entity/{entity}"), a.getEntityList)
 	r.Get(baseURL("/entity/{entity}/{entityID}"), a.getEntityEdit)
+	r.Get(baseURL("/entity/{entity}/{entityID}/delete"), a.deleteEntity)
 }
 
 // ListData represents the data needed to render the list template.
@@ -204,6 +205,25 @@ func (a *Admin) getEntityEdit(w http.ResponseWriter, r *http.Request) {
 	if err := a.executeTemplate(w, "edit", data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+}
+
+func (a *Admin) deleteEntity(w http.ResponseWriter, r *http.Request) {
+	// get entity name from url and call list with that name
+	entityName := chi.URLParam(r, "entity")
+	entityID := chi.URLParam(r, "entityID")
+
+	entity, ok := a.Entities[entityName]
+	if !ok {
+		http.Error(w, "entity not found", http.StatusNotFound)
+		return
+	}
+
+	if err := deleteEntityByID(a.databaseConn, entity.TableName, entity.PrimaryKey, entityID); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, path.Join(a.BaseURL, "/entity/", entity.TableName), http.StatusFound)
 }
 
 func (a *Admin) executeTemplate(w http.ResponseWriter, name string, data any) error {

@@ -5,3 +5,7 @@ up:
 .PHONY: down
 down:
 	dbctl stop pg
+
+.PHONY: run
+run:
+	go run cmd/server/server.go

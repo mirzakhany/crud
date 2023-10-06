@@ -145,6 +145,16 @@ func getEntityByID(db *sql.Conn, tableName, primaryKey string, id any) (*Row, er
 	return out, nil
 }
 
+func deleteEntityByID(db *sql.Conn, tableName, primaryKey string, id any) error {
+	stmt := fmt.Sprintf("delete from %s where %s = $1", tableName, primaryKey)
+	_, err := db.ExecContext(context.Background(), stmt, id)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func getTableFieldTypes(db *sql.Conn, tableName string) (map[string]string, error) {
 	rows, err := db.QueryContext(context.Background(), fmt.Sprintf("select * from %s limit 0", tableName))
 	if err != nil {
