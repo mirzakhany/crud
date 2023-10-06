@@ -43,6 +43,8 @@ type Entity struct {
 	Description string
 	// Entity columns. if nil, all columns will be selected.
 	Columns []string
+	// ColumnNameFormatter represents the column name formatter. if provided, the formatter will be used to format the column name.
+	ColumnNameFormatter func(string) string
 	// Formatter for each column. if provided, the formatter will be used to format the column value.
 	Formatters map[string]Formatter
 }
