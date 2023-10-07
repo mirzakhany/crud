@@ -128,8 +128,9 @@ func (a *Admin) PrepareHandlers(r chi.Router) {
 
 	r.Get(baseURL("/entity/{entity}"), a.getEntityList)
 	r.Get(baseURL("/entity/{entity}/new"), a.getEntityNew)
-	r.Post(baseURL("/entity/{entity}/new"), a.newEntityCreate)
+	r.Post(baseURL("/entity/{entity}/new"), a.createEntity)
 	r.Get(baseURL("/entity/{entity}/{entityID}"), a.getEntityEdit)
+	r.Post(baseURL("/entity/{entity}/{entityID}"), a.updateEntity)
 	r.Get(baseURL("/entity/{entity}/{entityID}/delete"), a.deleteEntity)
 }
 
@@ -145,7 +146,7 @@ type ListData struct {
 	Menus []Menu
 }
 
-func (a *Admin) newEntityCreate(w http.ResponseWriter, r *http.Request) {
+func (a *Admin) createEntity(w http.ResponseWriter, r *http.Request) {
 	entityName := chi.URLParam(r, "entity")
 	entity, ok := a.Entities[entityName]
 	if !ok {
@@ -179,6 +180,41 @@ func (a *Admin) newEntityCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.Redirect(w, r, path.Join(a.BaseURL, "/entity/", entity.TableName), http.StatusFound)
+}
+
+func (a *Admin) updateEntity(w http.ResponseWriter, r *http.Request) {
+	entityName := chi.URLParam(r, "entity")
+	entityID := chi.URLParam(r, "entityID")
+
+	entity, ok := a.Entities[entityName]
+	if !ok {
+		http.Error(w, "entity not found", http.StatusNotFound)
+		return
+	}
+
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	columns := make([]Column, 0)
+	for column, value := range r.Form {
+		if column == entity.PrimaryKey {
+			continue
+		}
+
+		columns = append(columns, Column{
+			Name:  column,
+			Value: value[0],
+		})
+	}
+
+	if err := a.db.UpdateEntity(r.Context(), entity.TableName, entity.PrimaryKey, entityID, columns); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, path.Join(a.BaseURL, "/entity/", entity.TableName, entityID), http.StatusFound)
 }
 
 func (a *Admin) getEntityList(w http.ResponseWriter, r *http.Request) {
@@ -215,6 +251,7 @@ type EditData struct {
 	Description string
 	Row         Row
 	EntityName  string
+	EntityID    string
 
 	IsEdit bool
 
@@ -248,8 +285,10 @@ func (a *Admin) getEntityEdit(w http.ResponseWriter, r *http.Request) {
 		Title:       entity.TitleSingular,
 		Description: entity.Description,
 		EntityName:  entityName,
-		Row:         *row,
-		IsEdit:      true,
+		EntityID:    entityID,
+
+		Row:    *row,
+		IsEdit: true,
 	}
 
 	if err := a.executeTemplate(w, "edit", data); err != nil {

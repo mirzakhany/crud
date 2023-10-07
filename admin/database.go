@@ -203,14 +203,37 @@ func (d *DB) CreateEntity(ctx context.Context, tableName, primaryKey string, col
 	}
 
 	stmt := fmt.Sprintf("insert into %s (%s) values (%s)", tableName, strings.Join(cols, ","), strings.Join(placeHolders, ","))
-	fmt.Println(stmt)
-	fmt.Println(values)
-
 	if _, err := db.ExecContext(ctx, stmt, values...); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+// UpdateEntity updates a row of a table.
+func (d *DB) UpdateEntity(ctx context.Context, tableName, primaryKey string, primaryKeyValue string, columns []Column) error {
+	db, err := d.Open(ctx)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	values := make([]any, 0)
+	setQueries := make([]string, 0)
+
+	for i, column := range columns {
+		if column.Name == primaryKey {
+			continue
+		}
+
+		setQueries = append(setQueries, fmt.Sprintf("%s = $%d", column.Name, i+1))
+		values = append(values, column.Value)
+	}
+
+	stmt := fmt.Sprintf("update %s set %s where %s = %s", tableName, strings.Join(setQueries, ","), primaryKey, primaryKeyValue)
+	fmt.Println(stmt)
+	_, err = db.ExecContext(ctx, stmt, values...)
+	return err
 }
 
 // GetTableRow returns the columns of a table.

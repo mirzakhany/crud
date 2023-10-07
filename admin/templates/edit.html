@@ -16,16 +16,17 @@
 
                 <!-- Begin Page Content -->
                 <div class="container-fluid">
-
+                  {{ $entityID := .EntityID }}
                   <!-- Page Heading -->
                   <h1 class="h3 mb-2 text-gray-800">Edit {{ .Title }}</h1>
+
                     {{ with .Row }}
-                    <p class="mb-4">{{ .PrimaryKey }} {{ .PrimaryKeyValue }}</p>
+                    <p class="mb-4">{{ .PrimaryKey }} {{ $entityID }}</p>
                     {{ end }}
                   <!-- DataTales Example -->
                   <div class="card shadow mb-4">
                       <div class="card-body">
-                        <form action="">
+                        <form action="/admin/entity/{{ .EntityName }}/{{ $entityID }}" method="post">
                             {{ with .Row }}
                             {{ range .Columns }}
                               {{ if ne .IsPrimary true }}
@@ -38,6 +39,7 @@
                                   {{ if eq .Type "string" }}type="text"{{ end }}
                                   {{ if eq .Type "bool" }}type="checkbox"{{ end }}
                                   value="{{ .Value }}" 
+                                  name="{{ .Name }}"
                                   class="form-control {{ if eq .Type "time.Time" }}datepicker{{ end }}" 
                                   id="input-{{ .Name }}" 
                                   aria-describedby="input-{{ .Name }}Help">
