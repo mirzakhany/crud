@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"embed"
-	"fmt"
 	"html/template"
 	"net/http"
 	"path"
@@ -215,8 +214,6 @@ func (a *Admin) createEntity(w http.ResponseWriter, r *http.Request) {
 			Value: value[0],
 		})
 	}
-
-	fmt.Println(columns)
 
 	if err := a.db.CreateEntity(r.Context(), entity.TableName, entity.PrimaryKey, columns); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
