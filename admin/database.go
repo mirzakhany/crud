@@ -231,7 +231,6 @@ func (d *DB) UpdateEntity(ctx context.Context, tableName, primaryKey string, pri
 	}
 
 	stmt := fmt.Sprintf("update %s set %s where %s = %s", tableName, strings.Join(setQueries, ","), primaryKey, primaryKeyValue)
-	fmt.Println(stmt)
 	_, err = db.ExecContext(ctx, stmt, values...)
 	return err
 }
