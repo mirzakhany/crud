@@ -193,7 +193,7 @@ func (a *Admin) createEntity(w http.ResponseWriter, r *http.Request) {
 	entityName := chi.URLParam(r, "entity")
 	entity, ok := a.Entities[entityName]
 	if !ok {
-		http.Error(w, "entity not found", http.StatusNotFound)
+		a.renderNotFoundPage(w, r)
 		return
 	}
 
@@ -229,7 +229,7 @@ func (a *Admin) updateEntity(w http.ResponseWriter, r *http.Request) {
 
 	entity, ok := a.Entities[entityName]
 	if !ok {
-		http.Error(w, "entity not found", http.StatusNotFound)
+		a.renderNotFoundPage(w, r)
 		return
 	}
 
@@ -262,7 +262,7 @@ func (a *Admin) getEntityList(w http.ResponseWriter, r *http.Request) {
 	entityName := chi.URLParam(r, "entity")
 	entity, ok := a.Entities[entityName]
 	if !ok {
-		http.Error(w, "entity not found", http.StatusNotFound)
+		a.renderNotFoundPage(w, r)
 		return
 	}
 
@@ -307,7 +307,7 @@ func (a *Admin) getEntityEdit(w http.ResponseWriter, r *http.Request) {
 
 	entity, ok := a.Entities[entityName]
 	if !ok {
-		http.Error(w, "entity not found", http.StatusNotFound)
+		a.renderNotFoundPage(w, r)
 		return
 	}
 
@@ -318,7 +318,7 @@ func (a *Admin) getEntityEdit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err == sql.ErrNoRows {
-		http.Error(w, "entity not found", http.StatusNotFound)
+		a.renderNotFoundPage(w, r)
 		return
 	}
 
@@ -345,7 +345,7 @@ func (a *Admin) getEntityNew(w http.ResponseWriter, r *http.Request) {
 
 	entity, ok := a.Entities[entityName]
 	if !ok {
-		http.Error(w, "entity not found", http.StatusNotFound)
+		a.renderNotFoundPage(w, r)
 		return
 	}
 
@@ -377,7 +377,7 @@ func (a *Admin) deleteEntity(w http.ResponseWriter, r *http.Request) {
 
 	entity, ok := a.Entities[entityName]
 	if !ok {
-		http.Error(w, "entity not found", http.StatusNotFound)
+		a.renderNotFoundPage(w, r)
 		return
 	}
 
@@ -402,6 +402,22 @@ func (a *Admin) dashboard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := a.executeTemplate(w, "dashboard", dashboardData); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+type NotfoundPageDaa struct {
+	BaseURL string
+	Menus   []Menu
+}
+
+func (a *Admin) renderNotFoundPage(w http.ResponseWriter, r *http.Request) {
+	data := NotfoundPageDaa{
+		BaseURL: a.BaseURL,
+		Menus:   a.getMenus(),
+	}
+
+	if err := a.executeTemplate(w, "not_found", data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
