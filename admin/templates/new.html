@@ -1,5 +1,5 @@
 {{define "new"}}
-{{ template "head"}}
+{{ template "head" .}}
 
     <!-- Page Wrapper -->
     <div id="wrapper">
@@ -23,7 +23,7 @@
                   <!-- DataTales Example -->
                   <div class="card shadow mb-4">
                       <div class="card-body">
-                        <form action="/admin/entity/{{.EntityName}}/new" method="post">
+                        <form action="{{ .BaseURL }}/entity/{{.EntityName}}/new" method="post">
                             {{ with .Row }}
                             {{ range .Columns }}
                               {{ if ne .IsPrimary true }}
@@ -62,6 +62,6 @@
     </div>
     <!-- End of Page Wrapper -->
 
-{{ template "foot" }}
+{{ template "foot" . }}
 {{end}}
 

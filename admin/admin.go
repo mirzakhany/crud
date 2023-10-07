@@ -126,6 +126,7 @@ func (a *Admin) PrepareHandlers(r chi.Router) {
 	// mux.HandleFunc(baseURL("/register/"), a.register)
 	// mux.HandleFunc(baseURL("/entity/")+"/", a.handleEntity)
 
+	r.Get(baseURL("/"), a.dashboard)
 	r.Get(baseURL("/entity/{entity}"), a.getEntityList)
 	r.Get(baseURL("/entity/{entity}/new"), a.getEntityNew)
 	r.Post(baseURL("/entity/{entity}/new"), a.createEntity)
@@ -139,11 +140,12 @@ type ListData struct {
 	Title       string
 	Description string
 	EntityName  string
-	BaesURL     string
-	Columns     []string
-	Rows        []Row
 
-	Menus []Menu
+	Columns []string
+	Rows    []Row
+
+	BaseURL string
+	Menus   []Menu
 }
 
 func (a *Admin) createEntity(w http.ResponseWriter, r *http.Request) {
@@ -234,7 +236,7 @@ func (a *Admin) getEntityList(w http.ResponseWriter, r *http.Request) {
 		Menus:       a.getMenus(),
 		Title:       entity.TitlePlural,
 		EntityName:  entity.TableName,
-		BaesURL:     a.BaseURL,
+		BaseURL:     a.BaseURL,
 		Description: entity.Description,
 		Columns:     columens,
 		Rows:        rows,
@@ -255,7 +257,8 @@ type EditData struct {
 
 	IsEdit bool
 
-	Menus []Menu
+	BaseURL string
+	Menus   []Menu
 }
 
 func (a *Admin) getEntityEdit(w http.ResponseWriter, r *http.Request) {
@@ -281,6 +284,7 @@ func (a *Admin) getEntityEdit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := EditData{
+		BaseURL:     a.BaseURL,
 		Menus:       a.getMenus(),
 		Title:       entity.TitleSingular,
 		Description: entity.Description,
@@ -313,6 +317,7 @@ func (a *Admin) getEntityNew(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := EditData{
+		BaseURL:     a.BaseURL,
 		Menus:       a.getMenus(),
 		EntityName:  entityName,
 		Title:       entity.TitleSingular,
@@ -343,6 +348,23 @@ func (a *Admin) deleteEntity(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.Redirect(w, r, path.Join(a.BaseURL, "/entity/", entity.TableName), http.StatusFound)
+}
+
+// DashboardData represents the data needed to render the dashboard template.
+type DashboardData struct {
+	BaseURL string
+	Menus   []Menu
+}
+
+func (a *Admin) dashboard(w http.ResponseWriter, r *http.Request) {
+	dashboardData := DashboardData{
+		BaseURL: a.BaseURL,
+		Menus:   a.getMenus(),
+	}
+
+	if err := a.executeTemplate(w, "dashboard", dashboardData); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 func (a *Admin) executeTemplate(w http.ResponseWriter, name string, data any) error {
@@ -397,12 +419,6 @@ func (a *Admin) getMenus() []Menu {
 	})
 
 	return menus
-}
-
-func (a *Admin) dashboard(w http.ResponseWriter, r *http.Request) {
-	if err := a.executeTemplate(w, "dashboard", nil); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
 }
 
 func (a *Admin) login(w http.ResponseWriter, r *http.Request) {

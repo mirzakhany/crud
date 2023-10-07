@@ -1,5 +1,5 @@
 {{define "list"}}
-{{ template "head"}}
+{{ template "head" .}}
 
     <!-- Page Wrapper -->
     <div id="wrapper">
@@ -19,13 +19,14 @@
 
                   <!-- Page Heading -->
                   {{ $entityName := .EntityName }}
+                  {{ $baseURL := .BaseURL }}
                   <div class="row">
                     <div class="col-xl-10 col-lg-10 col-md-10">
                         <h1 class="h3 mb-2 text-gray-800">{{ .Title }}</h1>
                         <p class="mb-4">{{ .Description }}</p>
                     </div>
                     <div class="col-xl-2 col-lg-2 col-md-2 my-4">
-                        <a href="/admin/entity/{{$entityName}}/new" class="btn btn-primary btn-icon-split" style="float: right;">
+                        <a href="{{ $baseURL }}/entity/{{$entityName}}/new" class="btn btn-primary btn-icon-split" style="float: right;">
                             <span class="icon text-white-50">
                                 <i class="fas fa-plus"></i>
                             </span>
@@ -62,7 +63,7 @@
                                                  <td>{{ .Value }}</td>
                                             {{end}}
                                             <td>
-                                                <a href="/admin/entity/{{$entityName}}/{{ .PrimaryKeyValue }}" class="btn btn-info btn-circle btn-sm">
+                                                <a href="{{ $baseURL }}/entity/{{$entityName}}/{{ .PrimaryKeyValue }}" class="btn btn-info btn-circle btn-sm">
                                                     <i class="fas fa-edit"></i>
                                                 </a>
                                                 <a onclick="deleteItem({{ .PrimaryKeyValue }})" class="btn btn-danger btn-circle btn-sm">
@@ -110,11 +111,11 @@
 
     <script>
         function deleteItem(id) {
-            $('#modal-delete-buttom').attr('href', '/admin/entity/{{$entityName}}/' + id + '/delete');
+            $('#modal-delete-buttom').attr('href', '{{ .BaseURL }}/entity/{{$entityName}}/' + id + '/delete');
             $('#deleteModal').modal();
         }
     </script>
 
 
-{{ template "foot" }}
+{{ template "foot" .}}
 {{end}}
