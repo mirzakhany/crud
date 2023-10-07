@@ -190,17 +190,22 @@ func (d *DB) CreateEntity(ctx context.Context, tableName, primaryKey string, col
 
 	cols := make([]string, 0)
 	values := make([]any, 0)
+	placeHolders := make([]string, 0)
 
-	for _, column := range columns {
+	for i, column := range columns {
 		if column.Name == primaryKey {
 			continue
 		}
 
 		cols = append(cols, column.Name)
 		values = append(values, column.Value)
+		placeHolders = append(placeHolders, fmt.Sprintf("$%d", i+1))
 	}
 
-	stmt := fmt.Sprintf("insert into %s (%s) values (%s)", tableName, strings.Join(cols, ","), strings.Join(strings.Split(strings.Repeat("?", len(cols)), ""), ","))
+	stmt := fmt.Sprintf("insert into %s (%s) values (%s)", tableName, strings.Join(cols, ","), strings.Join(placeHolders, ","))
+	fmt.Println(stmt)
+	fmt.Println(values)
+
 	if _, err := db.ExecContext(ctx, stmt, values...); err != nil {
 		return err
 	}

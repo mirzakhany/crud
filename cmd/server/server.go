@@ -19,7 +19,7 @@ func main() {
 			TitlePlural:   "Users",
 			TitleSingular: "User",
 			Description:   "Users of the system.",
-			SelectColumns: []string{"id", "name", "email", "password"},
+			SelectColumns: []string{"id", "name", "email"},
 			EditColumns:   []string{"name", "email", "password"},
 			FavIcon:       "fa-user",
 			Order:         1,

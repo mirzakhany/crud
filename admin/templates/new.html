@@ -1,4 +1,4 @@
-{{define "edit"}}
+{{define "new"}}
 {{ template "head"}}
 
     <!-- Page Wrapper -->
@@ -18,14 +18,12 @@
                 <div class="container-fluid">
 
                   <!-- Page Heading -->
-                  <h1 class="h3 mb-2 text-gray-800">Edit {{ .Title }}</h1>
-                    {{ with .Row }}
-                    <p class="mb-4">{{ .PrimaryKey }} {{ .PrimaryKeyValue }}</p>
-                    {{ end }}
+                  <h1 class="h3 mb-2 text-gray-800">New {{ .Title }}</h1>    
+                    <p class="mb-4">Create a new {{ .Title }}</p>
                   <!-- DataTales Example -->
                   <div class="card shadow mb-4">
                       <div class="card-body">
-                        <form action="">
+                        <form action="/admin/entity/{{.EntityName}}/new" method="post">
                             {{ with .Row }}
                             {{ range .Columns }}
                               {{ if ne .IsPrimary true }}
@@ -37,7 +35,8 @@
                                   {{ if eq .Type "float" }}type="number"{{ end }}
                                   {{ if eq .Type "string" }}type="text"{{ end }}
                                   {{ if eq .Type "bool" }}type="checkbox"{{ end }}
-                                  value="{{ .Value }}" 
+                                  value="{{ .Value }}"
+                                  name="{{ .Name }}"
                                   class="form-control {{ if eq .Type "time.Time" }}datepicker{{ end }}" 
                                   id="input-{{ .Name }}" 
                                   aria-describedby="input-{{ .Name }}Help">

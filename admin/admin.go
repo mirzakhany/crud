@@ -47,10 +47,12 @@ type Entity struct {
 	SelectColumns []string
 	// EditColumns columns. if nil, all columns will be selected.
 	EditColumns []string
+	// NewColumns columns. if nil, edit columns or all columns will be selected.
+	NewColumns []string
 	// ColumnNameFormatter represents the column name formatter. if provided, the formatter will be used to format the column name.
-	ColumnNameFormatter func(string) string
-	// Formatter for each column. if provided, the formatter will be used to format the column value.
-	Formatters map[string]Formatter
+	ColumnNameFormatter map[string]Formatter
+	// ValueFormatters for each column. if provided, the formatter will be used to format the column value.
+	ValueFormatters map[string]Formatter
 }
 
 // Admin represents the admin module.
@@ -126,6 +128,7 @@ func (a *Admin) PrepareHandlers(r chi.Router) {
 
 	r.Get(baseURL("/entity/{entity}"), a.getEntityList)
 	r.Get(baseURL("/entity/{entity}/new"), a.getEntityNew)
+	r.Post(baseURL("/entity/{entity}/new"), a.newEntityCreate)
 	r.Get(baseURL("/entity/{entity}/{entityID}"), a.getEntityEdit)
 	r.Get(baseURL("/entity/{entity}/{entityID}/delete"), a.deleteEntity)
 }
@@ -142,6 +145,42 @@ type ListData struct {
 	Menus []Menu
 }
 
+func (a *Admin) newEntityCreate(w http.ResponseWriter, r *http.Request) {
+	entityName := chi.URLParam(r, "entity")
+	entity, ok := a.Entities[entityName]
+	if !ok {
+		http.Error(w, "entity not found", http.StatusNotFound)
+		return
+	}
+
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	columns := make([]Column, 0)
+
+	for column, value := range r.Form {
+		if column == entity.PrimaryKey {
+			continue
+		}
+
+		columns = append(columns, Column{
+			Name:  column,
+			Value: value[0],
+		})
+	}
+
+	fmt.Println(columns)
+
+	if err := a.db.CreateEntity(r.Context(), entity.TableName, entity.PrimaryKey, columns); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, path.Join(a.BaseURL, "/entity/", entity.TableName), http.StatusFound)
+}
+
 func (a *Admin) getEntityList(w http.ResponseWriter, r *http.Request) {
 	entityName := chi.URLParam(r, "entity")
 	entity, ok := a.Entities[entityName]
@@ -150,7 +189,7 @@ func (a *Admin) getEntityList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rows, columens, err := a.db.GetTableColumenRows(r.Context(), entity.TableName, entity.PrimaryKey, entity.SelectColumns)
+	rows, columens, err := a.db.GetTableColumenRows(r.Context(), entity.TableName, entity.PrimaryKey, entity.getSelectColumns())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -175,6 +214,7 @@ type EditData struct {
 	Title       string
 	Description string
 	Row         Row
+	EntityName  string
 
 	IsEdit bool
 
@@ -192,7 +232,7 @@ func (a *Admin) getEntityEdit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	row, err := a.db.GetEntityByID(r.Context(), entity.TableName, entity.PrimaryKey, entity.EditColumns, entityID)
+	row, err := a.db.GetEntityByID(r.Context(), entity.TableName, entity.PrimaryKey, entity.getEditColumns(), entityID)
 	if err != nil && err != sql.ErrNoRows {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -207,6 +247,7 @@ func (a *Admin) getEntityEdit(w http.ResponseWriter, r *http.Request) {
 		Menus:       a.getMenus(),
 		Title:       entity.TitleSingular,
 		Description: entity.Description,
+		EntityName:  entityName,
 		Row:         *row,
 		IsEdit:      true,
 	}
@@ -226,7 +267,7 @@ func (a *Admin) getEntityNew(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	row, err := a.db.GetTableRow(r.Context(), entity.TableName, entity.PrimaryKey, entity.EditColumns)
+	row, err := a.db.GetTableRow(r.Context(), entity.TableName, entity.PrimaryKey, entity.getNewColumns())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -234,15 +275,15 @@ func (a *Admin) getEntityNew(w http.ResponseWriter, r *http.Request) {
 
 	data := EditData{
 		Menus:       a.getMenus(),
+		EntityName:  entityName,
 		Title:       entity.TitleSingular,
 		Description: entity.Description,
 		Row:         *row,
 		IsEdit:      false,
 	}
 
-	if err := a.executeTemplate(w, "edit", data); err != nil {
-		// http.Error(w, err.Error(), http.StatusInternalServerError)
-		fmt.Println(err)
+	if err := a.executeTemplate(w, "new", data); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 
@@ -363,4 +404,31 @@ func FileServer(r chi.Router, path string, root http.FileSystem) {
 		fs := http.StripPrefix(pathPrefix, http.FileServer(root))
 		fs.ServeHTTP(w, r)
 	})
+}
+
+func (e Entity) getSelectColumns() []string {
+	if len(e.SelectColumns) == 0 {
+		return []string{"*"}
+	}
+
+	return e.SelectColumns
+}
+
+func (e Entity) getEditColumns() []string {
+	if len(e.EditColumns) == 0 {
+		return []string{"*"}
+	}
+
+	return e.EditColumns
+}
+
+func (e Entity) getNewColumns() []string {
+	if len(e.NewColumns) == 0 {
+		if len(e.EditColumns) != 0 {
+			return e.EditColumns
+		}
+		return []string{"*"}
+	}
+
+	return e.NewColumns
 }
