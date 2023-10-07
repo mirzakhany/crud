@@ -18,14 +18,14 @@
                 <div class="container-fluid">
 
                   <!-- Page Heading -->
-                  
+                  {{ $entityName := .EntityName }}
                   <div class="row">
                     <div class="col-xl-10 col-lg-10 col-md-10">
                         <h1 class="h3 mb-2 text-gray-800">{{ .Title }}</h1>
                         <p class="mb-4">{{ .Description }}</p>
                     </div>
                     <div class="col-xl-2 col-lg-2 col-md-2 my-4">
-                        <a href="/edit" class="btn btn-primary btn-icon-split" style="float: right;">
+                        <a href="/admin/entity/{{$entityName}}/new" class="btn btn-primary btn-icon-split" style="float: right;">
                             <span class="icon text-white-50">
                                 <i class="fas fa-plus"></i>
                             </span>
@@ -33,7 +33,7 @@
                         </a>
                     </div>
                   </div>
-                 {{ $entityName := .EntityName }}
+                 
                   <!-- DataTales Example -->
                   <div class="card shadow mb-4">
                       <div class="card-body">

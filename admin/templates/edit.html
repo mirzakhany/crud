@@ -18,9 +18,13 @@
                 <div class="container-fluid">
 
                   <!-- Page Heading -->
-                  <h1 class="h3 mb-2 text-gray-800">Edit {{ .Title }}</h1>
-                  {{ with .Row }}
-                  <p class="mb-4">{{ .PrimaryKey }} {{ .PrimaryKeyValue }}</p>
+                  <h1 class="h3 mb-2 text-gray-800">{{ if eq .IsEdit true }}Edit{{else}}New{{end}} {{ .Title }}</h1>
+                  {{ if eq .IsEdit true}}
+                    {{ with .Row }}
+                    <p class="mb-4">{{ .PrimaryKey }} {{ .PrimaryKeyValue }}</p>
+                    {{ end }}
+                  {{ else }}  
+                    <p class="mb-4">Create a new {{ .Title }}</p>
                   {{ end }}
                   <!-- DataTales Example -->
                   <div class="card shadow mb-4">
@@ -28,6 +32,7 @@
                         <form>
                             {{ with .Row }}
                             {{ range .Columns }}
+                              {{ if ne .IsPrimary true }}
                               <div class="form-group">
                                 <label for="input-{{ .Name }}">{{ .Name | replace "_" " " | title }}</label>
                                 <input 
@@ -42,9 +47,10 @@
                                   aria-describedby="input-{{ .Name }}Help">
                                 <small id="input-{{ .Name }}Help" class="form-text text-muted"></small>
                               </div>
+                              {{ end }} 
                             {{ end }}
                             {{ end }}
-                            <button type="submit" class="btn btn-primary">Submit</button>
+                            <button type="submit" class="btn btn-primary">Save</button>
                           </form>
                       </div>
                   </div>

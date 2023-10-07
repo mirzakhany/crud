@@ -1,8 +1,10 @@
 package admin
 
 import (
+	"context"
 	"database/sql"
 	"embed"
+	"fmt"
 	"html/template"
 	"net/http"
 	"path"
@@ -41,8 +43,10 @@ type Entity struct {
 	Order int
 	// Entity description. default is empty.
 	Description string
-	// Entity columns. if nil, all columns will be selected.
-	Columns []string
+	// SelectColumns columns. if nil, all columns will be selected.
+	SelectColumns []string
+	// EditColumns columns. if nil, all columns will be selected.
+	EditColumns []string
 	// ColumnNameFormatter represents the column name formatter. if provided, the formatter will be used to format the column name.
 	ColumnNameFormatter func(string) string
 	// Formatter for each column. if provided, the formatter will be used to format the column value.
@@ -56,8 +60,7 @@ type Admin struct {
 	// DatabaseEngine represents the database engine. default is "postgres".
 	databaseEngine string
 	// DatabaseConn represents the database connection.
-	databaseConn *sql.Conn
-
+	db *DB
 	// Entities represents the entities of the admin module.
 	Entities map[string]Entity
 	// BaseURL represents the base url for the admin module. default is "/admin".
@@ -95,13 +98,14 @@ func New(opts ...Option) (*Admin, error) {
 		a.BaseURL = "/admin"
 	}
 
-	conn, err := openDB(a.databaseEngine, a.DatabaseURI)
-	if err != nil {
-		return nil, err
+	a.db = &DB{
+		URI:    a.DatabaseURI,
+		Engine: a.databaseEngine,
 	}
 
-	a.databaseConn = conn
-
+	if _, err := a.db.Open(context.Background()); err != nil {
+		return nil, err
+	}
 	return a, nil
 }
 
@@ -121,6 +125,7 @@ func (a *Admin) PrepareHandlers(r chi.Router) {
 	// mux.HandleFunc(baseURL("/entity/")+"/", a.handleEntity)
 
 	r.Get(baseURL("/entity/{entity}"), a.getEntityList)
+	r.Get(baseURL("/entity/{entity}/new"), a.getEntityNew)
 	r.Get(baseURL("/entity/{entity}/{entityID}"), a.getEntityEdit)
 	r.Get(baseURL("/entity/{entity}/{entityID}/delete"), a.deleteEntity)
 }
@@ -145,7 +150,7 @@ func (a *Admin) getEntityList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rows, columens, err := getTableColumenRows(a.databaseConn, entity.TableName, entity.PrimaryKey, entity.Columns)
+	rows, columens, err := a.db.GetTableColumenRows(r.Context(), entity.TableName, entity.PrimaryKey, entity.SelectColumns)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -171,6 +176,8 @@ type EditData struct {
 	Description string
 	Row         Row
 
+	IsEdit bool
+
 	Menus []Menu
 }
 
@@ -185,7 +192,7 @@ func (a *Admin) getEntityEdit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	row, err := getEntityByID(a.databaseConn, entity.TableName, entity.PrimaryKey, entityID)
+	row, err := a.db.GetEntityByID(r.Context(), entity.TableName, entity.PrimaryKey, entity.EditColumns, entityID)
 	if err != nil && err != sql.ErrNoRows {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -201,10 +208,41 @@ func (a *Admin) getEntityEdit(w http.ResponseWriter, r *http.Request) {
 		Title:       entity.TitleSingular,
 		Description: entity.Description,
 		Row:         *row,
+		IsEdit:      true,
 	}
 
 	if err := a.executeTemplate(w, "edit", data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func (a *Admin) getEntityNew(w http.ResponseWriter, r *http.Request) {
+	// get entity name from url and call list with that name
+	entityName := chi.URLParam(r, "entity")
+
+	entity, ok := a.Entities[entityName]
+	if !ok {
+		http.Error(w, "entity not found", http.StatusNotFound)
+		return
+	}
+
+	row, err := a.db.GetTableRow(r.Context(), entity.TableName, entity.PrimaryKey, entity.EditColumns)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	data := EditData{
+		Menus:       a.getMenus(),
+		Title:       entity.TitleSingular,
+		Description: entity.Description,
+		Row:         *row,
+		IsEdit:      false,
+	}
+
+	if err := a.executeTemplate(w, "edit", data); err != nil {
+		// http.Error(w, err.Error(), http.StatusInternalServerError)
+		fmt.Println(err)
 	}
 }
 
@@ -219,7 +257,7 @@ func (a *Admin) deleteEntity(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := deleteEntityByID(a.databaseConn, entity.TableName, entity.PrimaryKey, entityID); err != nil {
+	if err := a.db.DeleteEntityByID(r.Context(), entity.TableName, entity.PrimaryKey, entityID); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

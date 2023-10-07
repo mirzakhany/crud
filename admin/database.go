@@ -7,19 +7,23 @@ import (
 	"strings"
 )
 
-func openDB(engine, uri string) (*sql.Conn, error) {
-	db, err := sql.Open(engine, uri)
+// DB represents a database.
+type DB struct {
+	URI    string
+	Engine string
+}
+
+// Open opens a database connection.
+func (d *DB) Open(ctx context.Context) (*sql.Conn, error) {
+	db, err := sql.Open(d.Engine, d.URI)
 	if err != nil {
 		return nil, err
 	}
-	defer db.Close()
-
-	err = db.Ping()
-	if err != nil {
+	if err = db.PingContext(ctx); err != nil {
 		return nil, err
 	}
 
-	return db.Conn(context.Background())
+	return db.Conn(ctx)
 }
 
 // Row represents a row of a table.
@@ -37,13 +41,21 @@ type Column struct {
 	IsPrimary bool
 }
 
-func getTableColumenRows(db *sql.Conn, tableName, primaryKey string, selectColumns []string) ([]Row, []string, error) {
+// GetTableColumenRows returns the rows of a table.
+func (d *DB) GetTableColumenRows(ctx context.Context, tableName, primaryKey string, selectColumns []string) ([]Row, []string, error) {
 	if len(selectColumns) == 0 {
 		selectColumns = []string{"*"}
 	}
 
+	db, err := d.Open(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer db.Close()
+
 	stmt := fmt.Sprintf("select %s from %s", strings.Join(selectColumns, ","), tableName)
-	rows, err := db.QueryContext(context.Background(), stmt)
+	rows, err := db.QueryContext(ctx, stmt)
+
 	if err != nil {
 		return nil, nil, err
 	}
@@ -94,9 +106,16 @@ func getTableColumenRows(db *sql.Conn, tableName, primaryKey string, selectColum
 	return out, columns, nil
 }
 
-func getEntityByID(db *sql.Conn, tableName, primaryKey string, id any) (*Row, error) {
-	stmt := fmt.Sprintf("select * from %s where %s = $1 limit 1", tableName, primaryKey)
-	rows, err := db.QueryContext(context.Background(), stmt, id)
+// GetEntityByID returns a row of a table by its primary key.
+func (d *DB) GetEntityByID(ctx context.Context, tableName, primaryKey string, editColumns []string, id any) (*Row, error) {
+	db, err := d.Open(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	stmt := fmt.Sprintf("select %s from %s where %s = $1 limit 1", strings.Join(editColumns, ","), tableName, primaryKey)
+	rows, err := db.QueryContext(ctx, stmt, id)
 	if err != nil {
 		return nil, err
 	}
@@ -145,18 +164,109 @@ func getEntityByID(db *sql.Conn, tableName, primaryKey string, id any) (*Row, er
 	return out, nil
 }
 
-func deleteEntityByID(db *sql.Conn, tableName, primaryKey string, id any) error {
-	stmt := fmt.Sprintf("delete from %s where %s = $1", tableName, primaryKey)
-	_, err := db.ExecContext(context.Background(), stmt, id)
+// DeleteEntityByID deletes a row of a table by its primary key.
+func (d *DB) DeleteEntityByID(ctx context.Context, tableName, primaryKey string, id any) error {
+	db, err := d.Open(ctx)
 	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	stmt := fmt.Sprintf("delete from %s where %s = $1", tableName, primaryKey)
+	if _, err := db.ExecContext(ctx, stmt, id); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func getTableFieldTypes(db *sql.Conn, tableName string) (map[string]string, error) {
-	rows, err := db.QueryContext(context.Background(), fmt.Sprintf("select * from %s limit 0", tableName))
+// CreateEntity creates a row of a table.
+func (d *DB) CreateEntity(ctx context.Context, tableName, primaryKey string, columns []Column) error {
+	db, err := d.Open(ctx)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	cols := make([]string, 0)
+	values := make([]any, 0)
+
+	for _, column := range columns {
+		if column.Name == primaryKey {
+			continue
+		}
+
+		cols = append(cols, column.Name)
+		values = append(values, column.Value)
+	}
+
+	stmt := fmt.Sprintf("insert into %s (%s) values (%s)", tableName, strings.Join(cols, ","), strings.Join(strings.Split(strings.Repeat("?", len(cols)), ""), ","))
+	if _, err := db.ExecContext(ctx, stmt, values...); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// GetTableRow returns the columns of a table.
+func (d *DB) GetTableRow(ctx context.Context, tableName, primaryKey string, editColumns []string) (*Row, error) {
+	db, err := d.Open(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	if len(editColumns) == 0 {
+		editColumns = []string{"*"}
+	}
+
+	rows, err := db.QueryContext(ctx, fmt.Sprintf("select %s from %s limit 0", strings.Join(editColumns, ","), tableName))
+	if err != nil {
+		return nil, err
+	}
+
+	columns, err := rows.ColumnTypes()
+	if err != nil {
+		return nil, err
+	}
+
+	// dummy scan
+	values := make([]any, len(columns))
+	for i := range columns {
+		values[i] = &values[i]
+	}
+
+	for rows.Next() {
+		if err := rows.Scan(values...); err != nil {
+			return nil, err
+		}
+	}
+	// end dummy scan
+
+	out := &Row{
+		PrimaryKey: primaryKey,
+	}
+
+	for _, column := range columns {
+		out.Columns = append(out.Columns, Column{
+			Name:      column.Name(),
+			Type:      fieldTypeToGo(column.DatabaseTypeName()),
+			IsPrimary: column.Name() == primaryKey,
+		})
+	}
+
+	return out, nil
+}
+
+// GetTableFieldTypes returns the field types of a table.
+func (d *DB) GetTableFieldTypes(ctx context.Context, tableName string) (map[string]string, error) {
+	db, err := d.Open(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	rows, err := db.QueryContext(ctx, fmt.Sprintf("select * from %s limit 0", tableName))
 	if err != nil {
 		return nil, err
 	}

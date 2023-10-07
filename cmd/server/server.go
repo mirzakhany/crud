@@ -4,13 +4,12 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 	"github.com/mirzakhany/admin-gen/admin"
 )
 
 func main() {
 	httpRouter := chi.NewRouter()
-	httpRouter.Use(middleware.Logger)
+	// httpRouter.Use(middleware.Logger)
 	//admin.Init(httpRouter)
 
 	entities := []admin.Entity{
@@ -20,7 +19,8 @@ func main() {
 			TitlePlural:   "Users",
 			TitleSingular: "User",
 			Description:   "Users of the system.",
-			Columns:       []string{"id", "name", "email", "password"},
+			SelectColumns: []string{"id", "name", "email", "password"},
+			EditColumns:   []string{"name", "email", "password"},
 			FavIcon:       "fa-user",
 			Order:         1,
 		},
@@ -30,7 +30,8 @@ func main() {
 			TitlePlural:   "Organizations",
 			TitleSingular: "Organization",
 			Description:   "Organizations of the system.",
-			Columns:       []string{"id", "name"},
+			SelectColumns: []string{"id", "name"},
+			EditColumns:   []string{"name"},
 			FavIcon:       "fa-building",
 			Order:         2,
 		},
@@ -40,9 +41,10 @@ func main() {
 			TitlePlural:   "Permissions",
 			TitleSingular: "Permission",
 			Description:   "User permissions",
-			Columns:       []string{"id", "name"},
+			SelectColumns: []string{"id", "name"},
+			EditColumns:   []string{"name"},
 			FavIcon:       "fa-key",
-			Order:         2,
+			Order:         3,
 		},
 	}
 
