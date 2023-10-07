@@ -127,6 +127,7 @@ func (a *Admin) PrepareHandlers(r chi.Router) {
 	// mux.HandleFunc(baseURL("/entity/")+"/", a.handleEntity)
 
 	r.Get(baseURL("/"), a.dashboard)
+	r.Get(baseURL("/search/"), a.searchView)
 	r.Get(baseURL("/entity/{entity}"), a.getEntityList)
 	r.Get(baseURL("/entity/{entity}/new"), a.getEntityNew)
 	r.Post(baseURL("/entity/{entity}/new"), a.createEntity)
@@ -146,6 +147,47 @@ type ListData struct {
 
 	BaseURL string
 	Menus   []Menu
+}
+
+type SearchResults struct {
+	Title string
+	Link  string
+}
+
+type SearchData struct {
+	Query       string
+	ResultCount int
+
+	BaseURL string
+	Menus   []Menu
+
+	Results []SearchResults
+}
+
+func (a *Admin) searchView(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query().Get("q")
+
+	data := SearchData{
+		BaseURL: a.BaseURL,
+		Menus:   a.getMenus(),
+
+		Query:       query,
+		ResultCount: 2,
+		Results: []SearchResults{
+			{
+				Title: "test",
+				Link:  "test",
+			},
+			{
+				Title: "test2",
+				Link:  "test2",
+			},
+		},
+	}
+
+	if err := a.executeTemplate(w, "search", data); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 func (a *Admin) createEntity(w http.ResponseWriter, r *http.Request) {
