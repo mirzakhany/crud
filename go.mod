@@ -1,4 +1,4 @@
-module github.com/mirzakhany/admin-gen
+module github.com/mirzakhany/crud
 
 go 1.21.1
 

@@ -1,14 +1,16 @@
-package admin
+package crud
 
 import (
 	"context"
 	"database/sql"
 	"embed"
+	"fmt"
 	"html/template"
 	"net/http"
 	"path"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	_ "github.com/lib/pq"
@@ -118,13 +120,6 @@ func (a *Admin) PrepareHandlers(r chi.Router) {
 
 	FileServer(r, baseURL("/"), http.FS(assets))
 
-	// regiser esentional handlers
-	// mux.HandleFunc(baseURL("/dashboard/"), a.dashboard)
-	// mux.HandleFunc(baseURL("/forget-password/"), a.forgetPassword)
-	// mux.HandleFunc(baseURL("/login/"), a.login)
-	// mux.HandleFunc(baseURL("/register/"), a.register)
-	// mux.HandleFunc(baseURL("/entity/")+"/", a.handleEntity)
-
 	r.Get(baseURL("/"), a.dashboard)
 	r.Get(baseURL("/search/"), a.searchView)
 	r.Get(baseURL("/entity/{entity}"), a.getEntityList)
@@ -148,11 +143,13 @@ type ListData struct {
 	Menus   []Menu
 }
 
+// SearchResults represents the search results.
 type SearchResults struct {
 	Title string
 	Link  string
 }
 
+// SearchData represents the data needed to render the search template.
 type SearchData struct {
 	Query       string
 	ResultCount int
@@ -541,4 +538,28 @@ func (e Entity) getNewColumns() []string {
 	}
 
 	return e.NewColumns
+}
+
+func goTypeToHTMLType(goType string) string {
+	switch goType {
+	case "string":
+		return "text"
+	case "int":
+		return "number"
+	case "bool":
+		return "checkbox"
+	case "time.Time":
+		return "datetime-local"
+	default:
+		return "text"
+	}
+}
+
+func goValueToHTMLValue(goType string, value any) string {
+	switch goType {
+	case "time.Time":
+		return value.(time.Time).Format("2006-01-02T15:04")
+	default:
+		return fmt.Sprintf("%v", value)
+	}
 }

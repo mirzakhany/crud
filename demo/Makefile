@@ -8,4 +8,4 @@ down:
 
 .PHONY: run
 run:
-	go run cmd/server/server.go
+	go run server.go

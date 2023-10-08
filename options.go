@@ -1,4 +1,4 @@
-package admin
+package crud
 
 import (
 	"html/template"

@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/mirzakhany/admin-gen/admin"
+	"github.com/mirzakhany/crud"
 )
 
 // User is a sample model
@@ -19,8 +19,8 @@ type User struct {
 }
 
 // CrudEntity implements admin.CrudEntity interface
-func (u User) CrudEntity() admin.Entity {
-	return admin.Entity{
+func (u User) CrudEntity() crud.Entity {
+	return crud.Entity{
 		TableName:     "users",
 		TitlePlural:   "Users",
 		TitleSingular: "User",
@@ -51,7 +51,7 @@ func main() {
 	// httpRouter.Use(middleware.Logger)
 	//admin.Init(httpRouter)
 
-	entities := []admin.Entity{
+	entities := []crud.Entity{
 		{
 			TableName:     "users",
 			PrimaryKey:    "id",
@@ -120,10 +120,10 @@ func main() {
 		},
 	}
 
-	a, err := admin.New(
-		admin.WithDatabaseURI("postgres://postgres:postgres@localhost:15432/postgres?sslmode=disable"),
-		admin.WithBaseURL("/admin"),
-		admin.WithEntities(entities))
+	a, err := crud.New(
+		crud.WithDatabaseURI("postgres://postgres:postgres@localhost:15432/postgres?sslmode=disable"),
+		crud.WithBaseURL("/admin"),
+		crud.WithEntities(entities))
 
 	if err != nil {
 		panic(err)
