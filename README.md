@@ -28,9 +28,10 @@ To use Crud, you need to create a new instance of the Crud struct and pass chi r
 package main
 
 import (
-    "net/http"
+	"net/http"
 
-    "github.com/mirzakhany/crud"
+	"github.com/go-chi/chi/v5"
+	"github.com/mirzakhany/crud"
 )
 
 func main() {
@@ -78,11 +79,11 @@ func main() {
 Screenshots
 -----------
 
-![Dashboard](https://raw.githubusercontent.com/mirzakhany/crud/main/screenshots/dashboard.png)
-![Create](https://raw.githubusercontent.com/mirzakhany/crud/main/screenshots/create.png)
-![Retrive](https://raw.githubusercontent.com/mirzakhany/crud/main/screenshots/retrive.png)
-![Update](https://raw.githubusercontent.com/mirzakhany/crud/main/screenshots/update.png)
-![Delete](https://raw.githubusercontent.com/mirzakhany/crud/main/screenshots/delete.png)
+![Dashboard](https://github.com/mirzakhany/crud/raw/main/screenshots/dashboard.png)
+![Create](https://github.com/mirzakhany/crud/raw/main/screenshots/create.png)
+![Retrive](https://github.com/mirzakhany/crud/raw/main/screenshots/retrive.png)
+![Update](https://github.com/mirzakhany/crud/raw/main/screenshots/update.png)
+![Delete](https://github.com/mirzakhany/crud/raw/main/screenshots/delete.png)
 
 
 License
