@@ -75,6 +75,10 @@ type Admin struct {
 	TemplateFuncs template.FuncMap
 	// Templates represents the templates for the admin module. will override the default templates.
 	Templates map[string]*template.Template
+	// PermissionChecker represents the permission checker for the admin module.
+	PermissionChecker func(r *http.Request, userID, entityName, action string) bool
+	// UserIdentifier represents the function that returns the user identifier from the request.
+	UserIdentifier func(r *http.Request) string
 }
 
 // New returns a new admin module.
@@ -114,58 +118,27 @@ func New(opts ...Option) (*Admin, error) {
 
 // PrepareHandlers prepares the admin module handlers.
 func (a *Admin) PrepareHandlers(r chi.Router) {
-	baseURL := func(s string) string {
-		return path.Join(a.BaseURL, s)
-	}
-
-	FileServer(r, baseURL("/"), http.FS(assets))
-
-	r.Get(baseURL("/"), a.dashboard)
-	r.Get(baseURL("/search/"), a.searchView)
-	r.Get(baseURL("/entity/{entity}"), a.getEntityList)
-	r.Get(baseURL("/entity/{entity}/new"), a.getEntityNew)
-	r.Post(baseURL("/entity/{entity}/new"), a.createEntity)
-	r.Get(baseURL("/entity/{entity}/{entityID}"), a.getEntityEdit)
-	r.Post(baseURL("/entity/{entity}/{entityID}"), a.updateEntity)
-	r.Get(baseURL("/entity/{entity}/{entityID}/delete"), a.deleteEntity)
-}
-
-// ListData represents the data needed to render the list template.
-type ListData struct {
-	Title       string
-	Description string
-	EntityName  string
-
-	Columns []string
-	Rows    []Row
-
-	BaseURL string
-	Menus   []Menu
-}
-
-// SearchResults represents the search results.
-type SearchResults struct {
-	Title string
-	Link  string
-}
-
-// SearchData represents the data needed to render the search template.
-type SearchData struct {
-	Query       string
-	ResultCount int
-
-	BaseURL string
-	Menus   []Menu
-
-	Results []SearchResults
+	r.Route(path.Join(a.BaseURL, "/"), func(r chi.Router) {
+		fileServer(r, "/", http.FS(assets))
+		r.With(a.checkUserPermission).Get("/", a.dashboard)
+		r.With(a.checkUserPermission).Get("/search/", a.searchView)
+		r.With(a.checkUserPermission).Get("/entity/{entity}", a.getEntityList)
+		r.With(a.checkUserPermission).Get("/entity/{entity}/new", a.getEntityNew)
+		r.With(a.checkUserPermission).Post("/entity/{entity}/new", a.createEntity)
+		r.With(a.checkUserPermission).Get("/entity/{entity}/{entityID}", a.getEntityEdit)
+		r.With(a.checkUserPermission).Post("/entity/{entity}/{entityID}", a.updateEntity)
+		r.With(a.checkUserPermission).Get("/entity/{entity}/{entityID}/delete", a.deleteEntity)
+	})
 }
 
 func (a *Admin) searchView(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("q")
 
 	data := SearchData{
-		BaseURL: a.BaseURL,
-		Menus:   a.getMenus(),
+		BaseContextData: BaseContextData{
+			BaseURL: a.BaseURL,
+			Menus:   a.getMenus(),
+		},
 
 		Query:       query,
 		ResultCount: 2,
@@ -269,32 +242,21 @@ func (a *Admin) getEntityList(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := ListData{
-		Menus:       a.getMenus(),
 		Title:       entity.TitlePlural,
 		EntityName:  entity.TableName,
-		BaseURL:     a.BaseURL,
 		Description: entity.Description,
 		Columns:     columens,
 		Rows:        rows,
+
+		BaseContextData: BaseContextData{
+			BaseURL: a.BaseURL,
+			Menus:   a.getMenus(),
+		},
 	}
 
 	if err := a.executeTemplate(w, "list", data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-}
-
-// EditData represents the data needed to render the edit template.
-type EditData struct {
-	Title       string
-	Description string
-	Row         Row
-	EntityName  string
-	EntityID    string
-
-	IsEdit bool
-
-	BaseURL string
-	Menus   []Menu
 }
 
 func (a *Admin) getEntityEdit(w http.ResponseWriter, r *http.Request) {
@@ -320,8 +282,6 @@ func (a *Admin) getEntityEdit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := EditData{
-		BaseURL:     a.BaseURL,
-		Menus:       a.getMenus(),
 		Title:       entity.TitleSingular,
 		Description: entity.Description,
 		EntityName:  entityName,
@@ -329,6 +289,11 @@ func (a *Admin) getEntityEdit(w http.ResponseWriter, r *http.Request) {
 
 		Row:    *row,
 		IsEdit: true,
+
+		BaseContextData: BaseContextData{
+			BaseURL: a.BaseURL,
+			Menus:   a.getMenus(),
+		},
 	}
 
 	if err := a.executeTemplate(w, "edit", data); err != nil {
@@ -353,13 +318,16 @@ func (a *Admin) getEntityNew(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := EditData{
-		BaseURL:     a.BaseURL,
-		Menus:       a.getMenus(),
 		EntityName:  entityName,
 		Title:       entity.TitleSingular,
 		Description: entity.Description,
 		Row:         *row,
 		IsEdit:      false,
+
+		BaseContextData: BaseContextData{
+			BaseURL: a.BaseURL,
+			Menus:   a.getMenus(),
+		},
 	}
 
 	if err := a.executeTemplate(w, "new", data); err != nil {
@@ -386,35 +354,35 @@ func (a *Admin) deleteEntity(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, path.Join(a.BaseURL, "/entity/", entity.TableName), http.StatusFound)
 }
 
-// DashboardData represents the data needed to render the dashboard template.
-type DashboardData struct {
-	BaseURL string
-	Menus   []Menu
-}
-
 func (a *Admin) dashboard(w http.ResponseWriter, r *http.Request) {
-	dashboardData := DashboardData{
+	data := BaseContextData{
 		BaseURL: a.BaseURL,
 		Menus:   a.getMenus(),
 	}
 
-	if err := a.executeTemplate(w, "dashboard", dashboardData); err != nil {
+	if err := a.executeTemplate(w, "dashboard", data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 
-type NotfoundPageDaa struct {
-	BaseURL string
-	Menus   []Menu
-}
-
 func (a *Admin) renderNotFoundPage(w http.ResponseWriter, r *http.Request) {
-	data := NotfoundPageDaa{
+	data := BaseContextData{
 		BaseURL: a.BaseURL,
 		Menus:   a.getMenus(),
 	}
 
 	if err := a.executeTemplate(w, "not_found", data); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func (a *Admin) renderNotAuthorised(w http.ResponseWriter, r *http.Request) {
+	data := BaseContextData{
+		BaseURL: a.BaseURL,
+		Menus:   a.getMenus(),
+	}
+
+	if err := a.executeTemplate(w, "not_authorised", data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
@@ -441,15 +409,6 @@ func (a *Admin) executeTemplate(w http.ResponseWriter, name string, data any) er
 	}
 
 	return tmpl.ExecuteTemplate(w, name, data)
-}
-
-// Menu represents a menu item.
-type Menu struct {
-	Order     int
-	Idenifier string
-	Title     string
-	URL       string
-	FavIcon   string
 }
 
 func (a *Admin) getMenus() []Menu {
@@ -491,9 +450,50 @@ func (a *Admin) forgetPassword(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (a *Admin) checkUserPermission(handler http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if a.UserIdentifier != nil {
+			userIdentifier := a.UserIdentifier(r)
+			if userIdentifier == "" {
+				http.Redirect(w, r, path.Join(a.BaseURL, "/login"), http.StatusFound)
+				return
+			}
+
+			if a.PermissionChecker != nil {
+				var action string
+				switch r.Method {
+				case http.MethodGet:
+					action = "read"
+				case http.MethodPost:
+					action = "create"
+				}
+
+				entiryID := chi.URLParam(r, "entityID")
+				if entiryID != "" && action == "create" {
+					action = "update"
+				}
+
+				if strings.Contains(r.URL.Path, "delete") {
+					action = "delete"
+				}
+
+				entityName := chi.URLParam(r, "entity")
+				if entityName != "" {
+					if !a.PermissionChecker(r, userIdentifier, entityName, action) {
+						a.renderNotAuthorised(w, r)
+						return
+					}
+				}
+			}
+
+			handler.ServeHTTP(w, r)
+		}
+	})
+}
+
 // FileServer conveniently sets up a http.FileServer handler to serve
 // static files from a http.FileSystem.
-func FileServer(r chi.Router, path string, root http.FileSystem) {
+func fileServer(r chi.Router, path string, root http.FileSystem) {
 	if strings.ContainsAny(path, "{}*") {
 		panic("FileServer does not permit any URL parameters.")
 	}

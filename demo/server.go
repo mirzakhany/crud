@@ -123,7 +123,17 @@ func main() {
 	a, err := crud.New(
 		crud.WithDatabaseURI("postgres://postgres:postgres@localhost:15432/postgres?sslmode=disable"),
 		crud.WithBaseURL("/admin"),
-		crud.WithEntities(entities))
+		crud.WithEntities(entities),
+		crud.WithUserIdentifier(func(r *http.Request) string {
+			return "1"
+		}),
+		crud.WithPermissionChecker(func(r *http.Request, userID, entityName, action string) bool {
+			if entityName == "users" && action == "update" {
+				return false
+			}
+			return true
+		}),
+	)
 
 	if err != nil {
 		panic(err)

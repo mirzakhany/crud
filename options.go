@@ -2,6 +2,7 @@ package crud
 
 import (
 	"html/template"
+	"net/http"
 	"path"
 )
 
@@ -83,6 +84,22 @@ func WithTemplate(name, text string) Option {
 			return err
 		}
 		a.Templates[name] = tmpl
+		return nil
+	}
+}
+
+// WithUserIdentifier returns an admin option that sets the user identifier.
+func WithUserIdentifier(fn func(r *http.Request) string) Option {
+	return func(a *Admin) error {
+		a.UserIdentifier = fn
+		return nil
+	}
+}
+
+// WithPermissionChecker returns an admin option that sets the permission checker.
+func WithPermissionChecker(fn func(r *http.Request, userID, entityName, action string) bool) Option {
+	return func(a *Admin) error {
+		a.PermissionChecker = fn
 		return nil
 	}
 }
