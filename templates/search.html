@@ -22,25 +22,33 @@
                   <!-- DataTales Example -->
                   <div class="card shadow mb-4">
                       <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
-                                <thead>
-                                    <tr>
-                                        <th>Title</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                  {{range .Results }}
-                                      <tr>
-                                           <td> <a href="{{ .Link }}">{{ .Title}} </a></td>
-                                      </tr>
-                                  {{end}}
-                                </tbody>
-                            </table>
-                        </div>
+                        <ul class="list-unstyled">
+                            {{range $i, $result := .Results }}
+                            <li class="media {{if gt $i 0}}mt-4{{end}}">
+                                <div class="media-body">
+                                <h5 class="mt-0 mb-1"><a href="{{ $result.Link }}">{{ $result.Title}} </a></h5>
+                                {{ $result.Description }}
+                                </div>
+                            </li>
+                            <div style="border-bottom: 1px dashed #eee;"></div>
+                            {{end}}
+                        </ul>
                       </div>
+            
                   </div>
-
+                  <nav aria-label="Page navigation example">
+                    <ul class="pagination justify-content-end">
+                      <li class="page-item disabled">
+                        <a class="page-link" href="#" tabindex="-1">Previous</a>
+                      </li>
+                      <li class="page-item"><a class="page-link" href="#">1</a></li>
+                      <li class="page-item"><a class="page-link" href="#">2</a></li>
+                      <li class="page-item"><a class="page-link" href="#">3</a></li>
+                      <li class="page-item">
+                        <a class="page-link" href="#">Next</a>
+                      </li>
+                    </ul>
+                  </nav>
                 </div>
                 <!-- /.container-fluid -->
 

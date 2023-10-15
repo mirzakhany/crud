@@ -103,3 +103,11 @@ func WithPermissionChecker(fn func(r *http.Request, userID, entityName, action s
 		return nil
 	}
 }
+
+// WithSearchHandler returns an admin option that sets the search handler.
+func WithSearchHandler(fn func(r *http.Request, q string) ([]SearchResult, error)) Option {
+	return func(a *Admin) error {
+		a.SearchHandler = fn
+		return nil
+	}
+}

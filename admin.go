@@ -79,6 +79,8 @@ type Admin struct {
 	PermissionChecker func(r *http.Request, userID, entityName, action string) bool
 	// UserIdentifier represents the function that returns the user identifier from the request.
 	UserIdentifier func(r *http.Request) string
+	// SearchHandler represents the search handler for the admin module.
+	SearchHandler func(r *http.Request, query string) ([]SearchResult, error)
 }
 
 // New returns a new admin module.
@@ -116,12 +118,14 @@ func New(opts ...Option) (*Admin, error) {
 	return a, nil
 }
 
-// PrepareHandlers prepares the admin module handlers.
-func (a *Admin) PrepareHandlers(r chi.Router) {
+// GetMux prepares the admin module handlers.
+func (a *Admin) GetMux() http.Handler {
+	r := chi.NewRouter()
+
 	r.Route(path.Join(a.BaseURL, "/"), func(r chi.Router) {
 		fileServer(r, "/", http.FS(assets))
 		r.With(a.checkUserPermission).Get("/", a.dashboard)
-		r.With(a.checkUserPermission).Get("/search/", a.searchView)
+		r.With(a.checkUserPermission).Get("/search", a.searchView)
 		r.With(a.checkUserPermission).Get("/entity/{entity}", a.getEntityList)
 		r.With(a.checkUserPermission).Get("/entity/{entity}/new", a.getEntityNew)
 		r.With(a.checkUserPermission).Post("/entity/{entity}/new", a.createEntity)
@@ -129,29 +133,28 @@ func (a *Admin) PrepareHandlers(r chi.Router) {
 		r.With(a.checkUserPermission).Post("/entity/{entity}/{entityID}", a.updateEntity)
 		r.With(a.checkUserPermission).Get("/entity/{entity}/{entityID}/delete", a.deleteEntity)
 	})
+
+	return r
 }
 
 func (a *Admin) searchView(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("q")
 
 	data := SearchData{
-		BaseContextData: BaseContextData{
-			BaseURL: a.BaseURL,
-			Menus:   a.getMenus(),
-		},
+		BaseContextData: a.getBaseContextData(),
 
 		Query:       query,
 		ResultCount: 2,
-		Results: []SearchResults{
-			{
-				Title: "test",
-				Link:  "test",
-			},
-			{
-				Title: "test2",
-				Link:  "test2",
-			},
-		},
+	}
+
+	if a.SearchHandler != nil {
+		res, err := a.SearchHandler(r, query)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		data.Results = res
 	}
 
 	if err := a.executeTemplate(w, "search", data); err != nil {
@@ -248,10 +251,7 @@ func (a *Admin) getEntityList(w http.ResponseWriter, r *http.Request) {
 		Columns:     columens,
 		Rows:        rows,
 
-		BaseContextData: BaseContextData{
-			BaseURL: a.BaseURL,
-			Menus:   a.getMenus(),
-		},
+		BaseContextData: a.getBaseContextData(),
 	}
 
 	if err := a.executeTemplate(w, "list", data); err != nil {
@@ -290,10 +290,7 @@ func (a *Admin) getEntityEdit(w http.ResponseWriter, r *http.Request) {
 		Row:    *row,
 		IsEdit: true,
 
-		BaseContextData: BaseContextData{
-			BaseURL: a.BaseURL,
-			Menus:   a.getMenus(),
-		},
+		BaseContextData: a.getBaseContextData(),
 	}
 
 	if err := a.executeTemplate(w, "edit", data); err != nil {
@@ -324,10 +321,7 @@ func (a *Admin) getEntityNew(w http.ResponseWriter, r *http.Request) {
 		Row:         *row,
 		IsEdit:      false,
 
-		BaseContextData: BaseContextData{
-			BaseURL: a.BaseURL,
-			Menus:   a.getMenus(),
-		},
+		BaseContextData: a.getBaseContextData(),
 	}
 
 	if err := a.executeTemplate(w, "new", data); err != nil {
@@ -355,10 +349,7 @@ func (a *Admin) deleteEntity(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *Admin) dashboard(w http.ResponseWriter, r *http.Request) {
-	data := BaseContextData{
-		BaseURL: a.BaseURL,
-		Menus:   a.getMenus(),
-	}
+	data := a.getBaseContextData()
 
 	if err := a.executeTemplate(w, "dashboard", data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -366,10 +357,7 @@ func (a *Admin) dashboard(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *Admin) renderNotFoundPage(w http.ResponseWriter, r *http.Request) {
-	data := BaseContextData{
-		BaseURL: a.BaseURL,
-		Menus:   a.getMenus(),
-	}
+	data := a.getBaseContextData()
 
 	if err := a.executeTemplate(w, "not_found", data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -377,10 +365,7 @@ func (a *Admin) renderNotFoundPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *Admin) renderNotAuthorised(w http.ResponseWriter, r *http.Request) {
-	data := BaseContextData{
-		BaseURL: a.BaseURL,
-		Menus:   a.getMenus(),
-	}
+	data := a.getBaseContextData()
 
 	if err := a.executeTemplate(w, "not_authorised", data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -489,6 +474,14 @@ func (a *Admin) checkUserPermission(handler http.Handler) http.Handler {
 			handler.ServeHTTP(w, r)
 		}
 	})
+}
+
+func (a *Admin) getBaseContextData() BaseContextData {
+	return BaseContextData{
+		BaseURL:       a.BaseURL,
+		Menus:         a.getMenus(),
+		ShowSearchBar: a.SearchHandler != nil,
+	}
 }
 
 // FileServer conveniently sets up a http.FileServer handler to serve

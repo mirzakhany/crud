@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/mirzakhany/crud"
 )
 
@@ -47,10 +46,6 @@ type Permission struct {
 }
 
 func main() {
-	httpRouter := chi.NewRouter()
-	// httpRouter.Use(middleware.Logger)
-	//admin.Init(httpRouter)
-
 	entities := []crud.Entity{
 		{
 			TableName:     "users",
@@ -133,17 +128,29 @@ func main() {
 			}
 			return true
 		}),
+		crud.WithSearchHandler(func(r *http.Request, query string) ([]crud.SearchResult, error) {
+			return []crud.SearchResult{
+				{
+					Title:       "Search Result 1",
+					Description: "Search Result 1 Description",
+					Link:        "/admin",
+				},
+				{
+					Title:       "Search Result 2",
+					Description: "Search Result 2 Description",
+					Link:        "/admin",
+				},
+			}, nil
+		}),
 	)
 
 	if err != nil {
 		panic(err)
 	}
 
-	a.PrepareHandlers(httpRouter)
-
 	server := http.Server{
 		Addr:    ":8080",
-		Handler: httpRouter,
+		Handler: a.GetMux(),
 	}
 
 	server.ListenAndServe()

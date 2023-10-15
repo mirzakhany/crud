@@ -34,10 +34,11 @@ type ListData struct {
 	BaseContextData
 }
 
-// SearchResults represents the search results.
-type SearchResults struct {
-	Title string
-	Link  string
+// SearchResult represents the search results.
+type SearchResult struct {
+	Title       string
+	Description string
+	Link        string
 }
 
 // SearchData represents the data needed to render the search template.
@@ -47,10 +48,12 @@ type SearchData struct {
 
 	BaseContextData
 
-	Results []SearchResults
+	Results []SearchResult
 }
 
+// BaseContextData represents the data needed to render the base template.
 type BaseContextData struct {
-	BaseURL string
-	Menus   []Menu
+	ShowSearchBar bool
+	BaseURL       string
+	Menus         []Menu
 }
